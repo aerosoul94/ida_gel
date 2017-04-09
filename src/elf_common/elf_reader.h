@@ -104,7 +104,7 @@ public:
 
   void setData(const char *data, size_t length) 
   {
-    m_data.assign(data, length);
+    m_data.assign(data, data + length);
   }
 
   void setReader(linput_t *li) 
@@ -117,7 +117,7 @@ template <class Elf>
 class Section
   : public Elf::Shdr {
   linput_t *m_reader;
-  std::vector<char> m_data; // TODO: switch to std::vector
+  std::vector<char> m_data;
 
 public:
   Section() {}
@@ -137,7 +137,7 @@ public:
 
   void setData(const char *data, size_t length)
   {
-    m_data.assign(data, length);
+    m_data.assign(data, data + length);
   }
 
   void setReader(linput_t *li)
@@ -181,16 +181,16 @@ public:
   }
 
   void read() {
-    readHeader();
-    readSegments();
-    readSections();
+    this->readHeader();
+    this->readSegments();
+    this->readSections();
   }
 
   void print() {
-    printHeader();
-    printSegment();
-    printSections();
-    printSymbols();
+    this->printHeader();
+    this->printSegment();
+    this->printSections();
+    this->printSymbols();
   }
 
   bool verifyHeader() {
@@ -207,7 +207,7 @@ public:
   }
 
   linput_t *getReader() const 
-      { return this->m_reader; }
+      { return m_reader; }
 
   uchar osabi() const 
       { return m_header.e_ident[EI_OSABI]; }
@@ -304,7 +304,7 @@ private:
       swap(m_header.e_shstrndx);
     }
 
-    //printHeader();
+    //this->printHeader();
   }
 
   void readSegments() {
@@ -331,7 +331,7 @@ private:
         segment.setReader(m_reader);
       }
 
-      //printSegments();
+      //this->printSegments();
     }
   }
 
@@ -372,7 +372,7 @@ private:
           m_sections[m_header.e_shstrndx].sh_type == SHT_STRTAB)
         m_sectionStringTable = &m_sections[m_header.e_shstrndx];
 
-      //printSections();
+      //this->printSections();
     }
    }
 

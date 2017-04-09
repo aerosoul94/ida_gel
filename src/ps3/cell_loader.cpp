@@ -20,6 +20,7 @@ cell_loader::cell_loader(elf_reader<elf64> *elf,
 
   inf.demnames |= DEMNAM_GCC3;  // assume gcc3 names
   inf.af       |= AF_PROCPTR;   // Create function if data xref data->code32 exists
+  inf.filetype = f_ELF;
 
   char databasePath[QMAXPATH];
     

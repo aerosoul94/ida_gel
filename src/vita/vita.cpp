@@ -1,4 +1,3 @@
-
 #include "../elf_common/elf_reader.h"
 #include "psp2_loader.h"
 #include "sce.h"
