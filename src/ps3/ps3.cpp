@@ -53,7 +53,9 @@ static void idaapi
   cell_loader ldr(&elf, relocAddr, DATABASE_FILE); ldr.apply();
 }
 
+#ifdef _WIN32
 __declspec(dllexport)
+#endif
 loader_t LDSC = 
 {
   IDP_INTERFACE_VERSION,

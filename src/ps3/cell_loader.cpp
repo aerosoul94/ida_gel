@@ -248,6 +248,8 @@ void cell_loader::applySectionRelocations() {
     // NOTE: the only SHT_RELA sections I see after 0.85 
     //       are non-allocatable so no reason to consider those
     if ( section.sh_type == SHT_RELA ) {
+      if ( !(sections[ section.sh_info ].sh_flags & SHF_ALLOC) )
+        continue;
 
       auto nrela = section.sh_size / sizeof(Elf64_Rela);
       auto relocations = reinterpret_cast<Elf64_Rela *>(section.data());
@@ -283,18 +285,23 @@ void cell_loader::applySectionRelocations() {
           continue;
         }
 
-
         if ( symbols[ sym ].st_shndx > m_elf->getNumSections() ) {
           if ( symbols[ sym ].st_shndx != SHN_ABS ) {
             msg("Invalid symbol section index!\n");
             continue;
           }
         }
+
+        uint32 symaddr;
+        if ( symbols[ sym ].st_shndx == SHN_ABS )
+          symaddr = symbols[ sym ].st_value;
+        else
+          symaddr = sections[ symbols[ sym ].st_shndx ].sh_addr;
         
         uint32 addr  = sections[ section.sh_info ].sh_addr + 
                        rela.r_offset;
-        uint32 saddr = sections[ symbols[ sym ].st_shndx ].sh_addr +
-                       symbols[ sym ].st_value + rela.r_addend;
+        uint32 saddr = symaddr + symbols[ sym ].st_value + 
+                       rela.r_addend;
 
         applyRelocation(type, addr, saddr);
       }

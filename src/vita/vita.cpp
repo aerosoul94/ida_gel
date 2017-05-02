@@ -41,7 +41,9 @@ static void idaapi
   psp2_loader ldr(&elf, "vita.txt"); ldr.apply();
 }
 
+#ifdef _WIN32
 __declspec(dllexport)
+#endif
 loader_t LDSC =
 {
   IDP_INTERFACE_VERSION,
