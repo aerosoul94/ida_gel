@@ -30,3 +30,6 @@ Optionally, you can also build using cmake with the following command
 
 ## Notes
 These have only been tested and built using Visual Studio 2015 using IDA SDK 6.8.
+
+## Update
+Wii U Loader has been updated for IDA SDK 7.0+
