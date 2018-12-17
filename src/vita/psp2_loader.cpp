@@ -622,12 +622,18 @@ void psp2_loader::loadExports(uint32 entTop, uint32 entEnd) {
           auto nid = get_long(nidoffset);
           auto add = get_long(addoffset);
 
+          if (add & 1)
+            add -= 1;
+
           auto resolvedNid = getNameFromDatabase(nid);
           if (resolvedNid) {
             set_cmt(nidoffset, resolvedNid, false);
-            if (add & 1)
-              add -= 1;
             do_name_anyway(add, resolvedNid);
+          } else {
+            msg("unknown export %08X\n", nid);
+            qstring qfuncname;
+            qfuncname.sprnt("export_%08X", nid);
+            do_name_anyway(add, qfuncname.c_str());
           }
 
           if (i < nfunc)
