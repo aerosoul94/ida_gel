@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "../elf_common/elf_reader.h"
 #include "psp2_loader.h"
 #include "sce.h"
@@ -6,11 +8,8 @@
 #include <memory>
 
 static int idaapi
- accept_file(linput_t *li, char fileformatname[MAX_FILE_FORMAT_NAME], int n)
+ accept_file(qstring *fileformatname, qstring *processor, linput_t *li, const char *filename)
 {
-  if (n > 0)
-    return 0;
-
   elf_reader<elf32> elf(li);
 
   if (elf.verifyHeader() && 
@@ -24,9 +23,9 @@ static int idaapi
     else
       return 0;
 
-    set_processor_type("ARM", SETPROC_ALL);
+    *processor = "arm";
 
-    qsnprintf(fileformatname, MAX_FILE_FORMAT_NAME, "Playstation Vita %s", type);
+    fileformatname->sprnt("Playstation Vita %s", type);
 
     return ACCEPT_FIRST | 1;
   }
@@ -50,7 +49,7 @@ loader_t LDSC =
   0,
   accept_file,
   load_file,
-  NULL,
-  NULL,
-  NULL
+  nullptr,
+  nullptr,
+  nullptr
 };

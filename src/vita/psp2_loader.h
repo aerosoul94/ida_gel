@@ -3,7 +3,6 @@
 #include "elf_reader.h"
 #include "sce.h"
 
-#include <fstream>
 #include <array>
 #include <map>
 

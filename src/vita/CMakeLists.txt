@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 project(vitaldr)
 
+set(CMAKE_CXX_STANDARD 11)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/../../cmake)
 set(ELF_COMMON_PATH ${CMAKE_SOURCE_DIR}/../elf_common)
 set(THIRD_PARTY_PATH ${CMAKE_SOURCE_DIR}/../../third_party)

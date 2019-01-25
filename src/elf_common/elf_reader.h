@@ -41,7 +41,7 @@ static void printhex(const unsigned char *data, size_t size)
   msg("00000000 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F\n");
   for (size_t i = 0; i < size; i += 16)
   {
-    msg("%08x ", i);
+    msg("%08zx ", i);
     msg("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
       data[i + 0], data[i + 1], data[i + 2], data[i + 3], data[i + 4],
       data[i + 5], data[i + 6], data[i + 7], data[i + 8], data[i + 9],
