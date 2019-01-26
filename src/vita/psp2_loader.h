@@ -1,10 +1,16 @@
 #pragma once
 
-#include "elf_reader.h"
+#include "../elf_common/elf_reader.h"
 #include "sce.h"
 
+#include <idaldr.h>
+#include <struct.hpp>
+
 #include <array>
+#include <fstream>
 #include <map>
+#include <memory>
+#include <string>
 
 class psp2_loader
 {
@@ -32,8 +38,8 @@ private:
   void applySectionHeaders();
   void applyProgramHeaders();
   void applySegment(
-        uint32 sel,  uint64 offset, 
-        uint64 addr, uint64 size,
+	    uint32 sel, uint64 offset,
+	    ea_t addr, ea_t size,
         const char *name, const char *sclass, 
         uchar perm, uchar align, 
         bool load = true

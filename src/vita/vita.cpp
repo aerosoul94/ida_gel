@@ -1,43 +1,42 @@
-#include <fstream>
-
-#include "../elf_common/elf_reader.h"
 #include "psp2_loader.h"
-#include "sce.h"
-
-#include <idaldr.h>
-#include <memory>
 
 static int idaapi
- accept_file(qstring *fileformatname, qstring *processor, linput_t *li, const char *filename)
-{
+ accept_file(qstring *fileformatname, qstring *processor, linput_t *li, const char *filename) {
   elf_reader<elf32> elf(li);
 
-  if (elf.verifyHeader() && 
-      elf.machine() == EM_ARM) {
-    const char *type;
+  if (elf.verifyHeader() && elf.machine() == EM_ARM) {
+    const char *type = "Unknown";
+    switch (elf.type()) {
+      case ET_SCE_RELEXEC:
+        type = "Relocatable PRX";
+        break;
+      case ET_SCE_EXEC:
+        type = "Executable";
+        break;
+    }
 
-    if (elf.type() == ET_SCE_EXEC)
-      type = "Executable";
-    else if (elf.type() == ET_SCE_RELEXEC)
-      type = "Relocatable Executable";
-    else
-      return 0;
+    fileformatname->sprnt("PS Vita for ARM (%s)", type);
 
-    *processor = "arm";
-
-    fileformatname->sprnt("Playstation Vita %s", type);
-
-    return ACCEPT_FIRST | 1;
+    return 1;
   }
 
   return 0;
 }
 
-static void idaapi
- load_file(linput_t *li, ushort neflags, const char *fileformatname)
+void idaapi load_file(linput_t *li, ushort neflags, const char *fileformatname)
 {
-  elf_reader<elf32> elf(li); elf.read();
-  psp2_loader ldr(&elf, "vita.txt"); ldr.apply();
+  elf_reader<elf32> elf(li);
+  elf.read();
+  psp2_loader ldr(&elf, "vita.txt");
+
+  set_processor_type("ARM", SETPROC_LOADER);
+
+  inf.baseaddr = 0;
+  inf.specsegs = 4;
+
+  set_imagebase(elf.entry());
+
+  ldr.apply();
 }
 
 #ifdef _WIN32

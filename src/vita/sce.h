@@ -1,6 +1,6 @@
 #pragma once
 
-#include "elf.h"
+#include "../elf_common/elf.h"
 
 #define ET_SCE_EXEC     	  0xfe00
 #define ET_SCE_RELEXEC  	  0xfe04		/* PRX */

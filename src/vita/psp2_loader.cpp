@@ -1,22 +1,15 @@
-#include <fstream>
-
 #include "psp2_loader.h"
-#include <struct.hpp>
-#include <pro.h>
-#include <string>
 
-psp2_loader::psp2_loader(elf_reader<elf32> *elf, std::string databaseFile)
-  : m_elf(elf)
-{
+psp2_loader::psp2_loader(elf_reader<elf32> *elf, std::string databaseFile) : m_elf(elf) {
   inf.demnames |= DEMNAM_GCC3;  // assume gcc3 names
   inf.af       |= AF_PROCPTR;   // Create function if data xref data->code32 exists
-  //inf.af       |= AF_IMMOFF;    // Convert 32bit instruction operand to offset
+  //inf.af     |= AF_IMMOFF;    // Convert 32bit instruction operand to offset
   inf.af       |= AF_DREFOFF;   // Create offset if data xref to seg32 exists
-  inf.af2      |= AF2_DOEH;
+  inf.af       |= AF_DATOFF;
 
   char databasePath[QMAXPATH];
 
-  if (!getsysfile(databasePath, QMAXFILE, databaseFile.c_str(), LDR_SUBDIR))
+  if (getsysfile(databasePath, QMAXFILE, databaseFile.c_str(), LDR_SUBDIR) == NULL)
     loader_failure("Could not locate database file (%s).\n", databaseFile.c_str());
 
   m_database.open(databasePath);
@@ -26,7 +19,8 @@ psp2_loader::psp2_loader(elf_reader<elf32> *elf, std::string databaseFile)
 
   unsigned int nid;
   std::string symbol;
-  while (m_database >> std::hex >> nid >> symbol) { 
+
+  while (m_database >> std::hex >> nid >> symbol) {
     m_nidset.insert(std::pair<unsigned int, std::string>(nid, symbol));
   }
 }
@@ -36,7 +30,7 @@ void psp2_loader::apply() {
 
   applySegments();
 
-  if ( isLoadingPrx() )
+  if (isLoadingPrx())
     applyRelocations();
 
   applyModuleInfo();
@@ -44,9 +38,9 @@ void psp2_loader::apply() {
 }
 
 void psp2_loader::applySegments() {
-  if ( m_elf->getNumSections() > 0 )
+  if (m_elf->getNumSections() > 0)
     applySectionHeaders();
-  else if ( m_elf->getNumSegments() > 0 )
+  else if (m_elf->getNumSegments() > 0)
     applyProgramHeaders();
 }
 
@@ -77,18 +71,18 @@ void psp2_loader::applySectionHeaders() {
       sclass = CLASS_DATA;
 
     const char *name = "";
-    if (section.sh_name != 0)
+    if (section.sh_name != NULL)
       name = &strTab[section.sh_name];
 
-    applySegment( index, 
-                  section.sh_offset, 
-                  section.sh_addr, 
-                  section.sh_size,
-                  name, 
-                  sclass, 
-                  perm, 
-                  m_elf->getAlignment(section.sh_addralign),
-                  section.sh_type == SHT_NOBITS);
+    applySegment(index,
+                 section.sh_offset,
+                 section.sh_addr,
+                 section.sh_size,
+                 name,
+                 sclass,
+                 perm,
+                 m_elf->getAlignment(section.sh_addralign),
+                 section.sh_type == SHT_NOBITS);
 
     ++index;
   }
@@ -125,13 +119,13 @@ void psp2_loader::applyProgramHeaders() {
     if (segment.p_flags & PF_R)
       perm |= SEGPERM_READ;
 
-    applySegment(index, 
-                 segment.p_offset, 
-                 segment.p_vaddr, 
+    applySegment(index,
+                 segment.p_offset,
+                 segment.p_vaddr,
                  segment.p_memsz,
-                 NULL, 
-                 sclass, 
-                 perm, 
+                 NULL,
+                 sclass,
+                 perm,
                  m_elf->getAlignment(segment.p_align),
                  segment.p_filesz == 0);
 
@@ -142,8 +136,8 @@ void psp2_loader::applyProgramHeaders() {
 void psp2_loader::applySegment(
     uint32 sel, 
     uint64 offset, 
-    uint64 addr, 
-    uint64 size,
+    ea_t addr, 
+    ea_t size,
     const char *name, 
     const char *sclass, 
     uchar perm, 
@@ -164,7 +158,7 @@ void psp2_loader::applySegment(
 
   set_selector(sel, 0);
 
-  if (name == nullptr)
+  if (name == NULL)
     name = "";
 
   add_segm_ex(&seg, name, sclass, 0);
@@ -297,16 +291,16 @@ void psp2_loader::applyRelocations() {
 
         g_offset += r_offset;
         g_saddr = segments[r_symseg].p_vaddr;
-
-        /*msg("  r_symseg   %i [%08x]\n", r_symseg, segments[r_symseg].p_vaddr);
-        msg("  r_type     %i\n", g_type);
-        msg("  r_offset   %08x\n", r_offset);
-        msg("  r_addend   %08x\n", g_addend);
-        msg("  relocation info [1]\n");
-        msg("    patch addr %08x + %08x\n", g_addr, r_offset);
-        msg("    sym addr    %08x\n", segments[r_symseg].p_vaddr);
-        msg("    + addend    %08x\n", g_addend);*/
-
+        /*
+            msg("  r_symseg   %i [%08x]\n", r_symseg, segments[r_symseg].p_vaddr);
+            msg("  r_type     %i\n", g_type);
+            msg("  r_offset   %08x\n", r_offset);
+            msg("  r_addend   %08x\n", g_addend);
+            msg("  relocation info [1]\n");
+            msg("    patch addr %08x + %08x\n", g_addr, r_offset);
+            msg("    sym addr    %08x\n", segments[r_symseg].p_vaddr);
+            msg("    + addend    %08x\n", g_addend);
+        */
         applyRelocation(g_type,
                         g_addr + g_offset,
                         g_saddr,
@@ -314,28 +308,29 @@ void psp2_loader::applyRelocations() {
 
         g_type2 = 0;
 
-        pos += 1; 
+        pos += 1;
         break;  // size = 8
-        }
+      }
       case 3: { // for THUMB/ARM MOVW/MOVT pairs
         //msg("%08x %08x\n", rel[pos], rel[pos + 1]);
         auto r_symseg = (rel[pos] >> 4)  & 0xF;
         auto r_mode   = (rel[pos] >> 8)  & 1; // 1 = THUMB, 0 = ARM
         auto r_offset = (rel[pos] >> 9)  & 0x3FFFF;
         auto r_dist2  = (rel[pos] >> 27) & 0x1F;
-             g_addend = (rel[pos+1]);
+        g_addend = (rel[pos + 1]);
         // if r_mode rtype1 = R_ARM_THM_MOVW_ABS_NC  <- THUMB
         // else rtype1 = R_ARM_MOVW_ABS_NC <- ARM
         // if r_mode rtype2 = R_ARM_THM_MOVT_ABS <- THUMB
         // else rtype2 = R_ARM_MOVT_ABS <- ARM
         // offset = prevoffset + r_offset
         // offset2 = offset + r_offset2
-        /*msg("  r_symseg   %i\n", r_symseg);
+        /*
+      msg("  r_symseg   %i\n", r_symseg);
         msg("  r_mode     %i\n", r_mode);
         msg("  r_offset   %08x\n", r_offset);
         msg("  r_dist2    %08x\n", r_dist2);
-        msg("  r_addend   %08x\n", g_addend);*/
-
+        msg("  r_addend   %08x\n", g_addend);
+    */
         if (r_mode == 1)
           g_type = R_ARM_THM_MOVW_ABS_NC;
         else if (r_mode == 0)
@@ -348,19 +343,19 @@ void psp2_loader::applyRelocations() {
 
         g_offset += r_offset;
         g_saddr = segments[r_symseg].p_vaddr;
+        /*
+            msg("  relocation info [1]\n");
+            msg("    r_type     %i\n", g_type);
+            msg("    patch addr %08x + %08x\n", g_addr, g_offset);
+            msg("    sym addr   %08x\n", segments[r_symseg].p_vaddr);
+            msg("    + addend   %08x\n", g_addend);
 
-        /*msg("  relocation info [1]\n");
-        msg("    r_type     %i\n", g_type);
-        msg("    patch addr %08x + %08x\n", g_addr, g_offset);
-        msg("    sym addr   %08x\n", segments[r_symseg].p_vaddr);
-        msg("    + addend   %08x\n", g_addend);
-
-        msg("  relocation info [2]\n");
-        msg("    r_type2    %i\n", g_type2);
-        msg("    patch addr %08x + %08x + %08x\n", g_addr, g_offset, r_dist2);
-        msg("    sym addr   %08x\n", segments[r_symseg].p_vaddr);
-        msg("    + addend   %08x\n", g_addend);*/
-
+            msg("  relocation info [2]\n");
+            msg("    r_type2    %i\n", g_type2);
+            msg("    patch addr %08x + %08x + %08x\n", g_addr, g_offset, r_dist2);
+            msg("    sym addr   %08x\n", segments[r_symseg].p_vaddr);
+            msg("    + addend   %08x\n", g_addend);
+        */
         applyRelocation(g_type,
                         g_addr + g_offset,
                         g_saddr,
@@ -371,33 +366,33 @@ void psp2_loader::applyRelocations() {
                         g_saddr,
                         g_addend);
 
-        pos += 1; 
+        pos += 1;
         break;  // size = 8
-        }
+      }
       case 4: {
         //msg("%08x\n", rel[pos]);
-        auto r_offset = (rel[pos] >> 4)  & 0x7FFFFF;
-        auto r_dist2  = (rel[pos] >> 27) & 0x1F;
+        auto r_offset = (rel[pos] >> 4) & 0x7FFFFF;
+        auto r_dist2 = (rel[pos] >> 27) & 0x1F;
         // offset = prevoffset + r_offset
         // offset2 = r_offset + 
         // uses previous rtype1 and rtype2
-        /*msg("  r_offset  %08x\n", r_offset);
-        msg("  r_dist2   %08x\n", r_dist2);*/
+        //msg("  r_offset  %08x\n", r_offset);
+        //msg("  r_dist2   %08x\n", r_dist2);
 
         g_offset += r_offset;
+        /*
+            msg("  relocation info [1]\n");
+            msg("    r_type     %i\n", g_type);
+            msg("    patch addr %08x + %08x\n", g_addr, g_offset);
+            msg("    sym addr   %08x\n", g_saddr);
+            msg("    + addend   %08x\n", g_addend);
 
-        /*msg("  relocation info [1]\n");
-        msg("    r_type     %i\n", g_type);
-        msg("    patch addr %08x + %08x\n", g_addr, g_offset);
-        msg("    sym addr   %08x\n", g_saddr);
-        msg("    + addend   %08x\n", g_addend);
-
-        msg("  relocation info [2]\n");
-        msg("    r_type2     %i\n", g_type2);
-        msg("    patch addr %08x + %08x + %08x\n", g_addr, g_offset, r_dist2);
-        msg("    sym addr   %08x\n", g_saddr);
-        msg("    + addend   %08x\n", g_addend);*/
-
+            msg("  relocation info [2]\n");
+            msg("    r_type2     %i\n", g_type2);
+            msg("    patch addr %08x + %08x + %08x\n", g_addr, g_offset, r_dist2);
+            msg("    sym addr   %08x\n", g_saddr);
+            msg("    + addend   %08x\n", g_addend);
+        */
         applyRelocation(g_type,
                         g_addr + g_offset,
                         g_saddr,
@@ -409,30 +404,31 @@ void psp2_loader::applyRelocations() {
                         g_addend);
 
         pos += 0; break;  // size = 4
-        }
+      }
       case 5: {
         //msg("%08x\n", rel[pos]);
         auto r_dist_1 = (rel[pos] >> 4)  & 0x1FF;
         auto r_dist_2 = (rel[pos] >> 13) & 0x1F;
         auto r_dist_3 = (rel[pos] >> 18) & 0x1FF;
         auto r_dist_4 = (rel[pos] >> 27) & 0x1F;
-        /*msg("r_dist_1    %08x\n", r_dist_2);
-        msg("r_dist_2    %08x\n", r_dist_2);
-        msg("r_dist_3    %08x\n", r_dist_3);
-        msg("r_dist_4    %08x\n", r_dist_4);
+        /*
+          msg("r_dist_1    %08x\n", r_dist_2);
+          msg("r_dist_2    %08x\n", r_dist_2);
+          msg("r_dist_3    %08x\n", r_dist_3);
+          msg("r_dist_4    %08x\n", r_dist_4);
 
-        msg("  relocation info [1]\n");
-        msg("    r_type     %i\n", g_type);
-        msg("    patch addr %08x + %08x\n", g_addr, g_offset + r_dist_1);
-        msg("    sym addr   %08x\n", g_saddr);
-        msg("    + addend   %08x\n", g_addend);
+          msg("  relocation info [1]\n");
+          msg("    r_type     %i\n", g_type);
+          msg("    patch addr %08x + %08x\n", g_addr, g_offset + r_dist_1);
+          msg("    sym addr   %08x\n", g_saddr);
+          msg("    + addend   %08x\n", g_addend);
 
-        msg("  relocation info [2]\n");
-        msg("    r_type2     %i\n", g_type2);
-        msg("    patch addr %08x + %08x + %08x\n", g_addr, g_offset, r_dist_2);
-        msg("    sym addr   %08x\n", g_saddr);
-        msg("    + addend   %08x\n", g_addend);*/
-
+          msg("  relocation info [2]\n");
+          msg("    r_type2     %i\n", g_type2);
+          msg("    patch addr %08x + %08x + %08x\n", g_addr, g_offset, r_dist_2);
+          msg("    sym addr   %08x\n", g_saddr);
+          msg("    + addend   %08x\n", g_addend);
+        */
         applyRelocation(g_type,
                         g_addr + g_offset + r_dist_1,
                         g_saddr,
@@ -444,19 +440,19 @@ void psp2_loader::applyRelocations() {
                         g_addend);
 
         g_offset += r_dist_1 + r_dist_3;
+        /*
+            msg("  relocation info [3]\n");
+            msg("    r_type     %i\n", g_type);
+            msg("    patch addr %08x + %08x\n", g_addr, g_offset + r_dist_3);
+            msg("    sym addr   %08x\n", g_saddr);
+            msg("    + addend   %08x\n", g_addend);
 
-        /*msg("  relocation info [3]\n");
-        msg("    r_type     %i\n", g_type);
-        msg("    patch addr %08x + %08x\n", g_addr, g_offset + r_dist_3);
-        msg("    sym addr   %08x\n", g_saddr);
-        msg("    + addend   %08x\n", g_addend);
-
-        msg("  relocation info [4]\n");
-        msg("    r_type2     %i\n", g_type2);
-        msg("    patch addr %08x + %08x + %08x\n", g_addr, g_offset, r_dist_4);
-        msg("    sym addr   %08x\n", g_saddr);
-        msg("    + addend   %08x\n", g_addend);*/
-
+            msg("  relocation info [4]\n");
+            msg("    r_type2     %i\n", g_type2);
+            msg("    patch addr %08x + %08x + %08x\n", g_addr, g_offset, r_dist_4);
+            msg("    sym addr   %08x\n", g_saddr);
+            msg("    + addend   %08x\n", g_addend);
+        */
         applyRelocation(g_type,
                         g_addr + g_offset,
                         g_saddr,
@@ -467,7 +463,7 @@ void psp2_loader::applyRelocations() {
                         g_saddr,
                         g_addend);
         pos += 0; break;  // size = 4
-        }
+      }
       case 6: {
         //msg("%08x\n", rel[pos]);
         auto r_offset = (rel[pos] >> 4);
@@ -479,20 +475,20 @@ void psp2_loader::applyRelocations() {
         auto orgval = get_original_dword(segments[g_patchseg].p_vaddr + g_offset);
         uint32 segbase = 0;
         for (auto seg : m_elf->getSegments()) {
-          if (orgval >= seg.p_vaddr && 
-              orgval <  seg.p_vaddr + seg.p_filesz) {
+          if (orgval >= seg.p_vaddr &&
+              orgval < seg.p_vaddr + seg.p_filesz) {
             segbase = seg.p_vaddr;
           }
         }
 
-        auto r_addend = orgval - segbase;
-             g_saddr  = segbase; //+ m_relocAddr;
-
-        /*msg("  relocation info [1]\n");
-        msg("    r_patchseg %i [%08x]\n", g_patchseg, segments[g_patchseg].p_vaddr);
-        msg("    patch addr %08x + %08x\n", g_addr, g_offset);
-        msg("    sym addr   %08x\n", g_saddr + r_addend);*/
-
+        uint32 r_addend = orgval - segbase;
+        g_saddr = segbase; //+ m_relocAddr;
+        /*
+          msg("  relocation info [1]\n");
+          msg("    r_patchseg %i [%08x]\n", g_patchseg, segments[g_patchseg].p_vaddr);
+          msg("    patch addr %08x + %08x\n", g_addr, g_offset);
+          msg("    sym addr   %08x\n", g_saddr + r_addend);
+        */
         g_type2 = 0;
         g_type  = R_ARM_ABS32;
 
@@ -501,7 +497,7 @@ void psp2_loader::applyRelocations() {
                         g_saddr,
                         r_addend);
         pos += 0; break;  // size = 4
-        }
+      }
       case 7:   // 7 bit offsets
       case 8:   // 4 bit offsets
       case 9: { // 2 bit offsets
@@ -518,29 +514,29 @@ void psp2_loader::applyRelocations() {
         }
 
         do {
-          auto offset = (r_offsets & mask) * sizeof(uint32);
+          uint32 offset = (r_offsets & mask) * sizeof(uint32);
           g_offset += offset;
           auto orgval = get_original_dword(segments[g_patchseg].p_vaddr + g_offset);
 
           uint32 segbase = 0;
           for (auto seg : m_elf->getSegments()) {
-            if (orgval >= seg.p_vaddr && 
-                orgval <  seg.p_vaddr + seg.p_filesz) {
+            if (orgval >= seg.p_vaddr &&
+                orgval < seg.p_vaddr + seg.p_filesz) {
               segbase = seg.p_vaddr;
             }
           }
 
           auto r_addend = orgval - segbase;
-               g_saddr  = segbase;// + m_relocAddr;
-
-          /*msg("  relocation info [1]\n");
-          msg("    offset %08x\n", offset);
-          msg("    r_patchseg %i [%08x]\n", g_patchseg, segments[g_patchseg].p_vaddr);
-          msg("    patch addr %08x + %08x\n", g_addr, g_offset);
-          msg("    sym addr   %08x\n", g_saddr);
-          msg("    + addend   %08x\n", r_addend);*/
-
-          //doDwrd(g_addr + g_offset, 4);
+          g_saddr = segbase;// + m_relocAddr;
+          /*
+              msg("  relocation info [1]\n");
+              msg("    offset %08x\n", offset);
+              msg("    r_patchseg %i [%08x]\n", g_patchseg, segments[g_patchseg].p_vaddr);
+              msg("    patch addr %08x + %08x\n", g_addr, g_offset);
+              msg("    sym addr   %08x\n", g_saddr);
+              msg("    + addend   %08x\n", r_addend);
+          */
+          //create_dword(g_addr + g_offset, 4);
 
           g_type2 = 0;
           g_type  = R_ARM_ABS32;
@@ -553,9 +549,9 @@ void psp2_loader::applyRelocations() {
         } while (r_offsets >>= bitsize);
 
         pos += 0; break;
-        }
+      }
       default:
-        msg("Invalid r_format %i at offset %lx!n", r_format, pos * 4);
+        msg("Invalid r_format %i at offset %zx!n", r_format, pos * 4);
         break;
       }
 
@@ -586,16 +582,16 @@ void psp2_loader::applyModuleInfo() {
   auto firstSegment = m_elf->getSegments()[0].p_vaddr;
   auto modInfoAddr = m_elf->entry() + firstSegment;
 
-  tid_t tid = get_struc_id("_scemoduleinfo");
+  tid_t tid = get_struc_id("scemoduleinfo");
   create_struct(modInfoAddr, sizeof(_scemoduleinfo_prx2arm), tid);
 
   auto entTop = get_dword(modInfoAddr + offsetof(_scemoduleinfo_prx2arm, ent_top));
   auto entEnd = get_dword(modInfoAddr + offsetof(_scemoduleinfo_prx2arm, ent_end));
-  loadExports( firstSegment + entTop, firstSegment + entEnd );
+  loadExports(firstSegment + entTop, firstSegment + entEnd);
 
   auto stubTop = get_dword(modInfoAddr + offsetof(_scemoduleinfo_prx2arm, stub_top));
   auto stubEnd = get_dword(modInfoAddr + offsetof(_scemoduleinfo_prx2arm, stub_end));
-  loadImports( firstSegment + stubTop, firstSegment + stubEnd );
+  loadImports(firstSegment + stubTop, firstSegment + stubEnd);
 }
 
 void psp2_loader::loadExports(uint32 entTop, uint32 entEnd) {
@@ -608,21 +604,21 @@ void psp2_loader::loadExports(uint32 entTop, uint32 entEnd) {
     auto nvar    = get_word(ea + offsetof(_scelibent_common, nvar));
     auto ntlsvar = get_word(ea + offsetof(_scelibent_common, ntlsvar));
 
-    auto count = nfunc + nvar + ntlsvar;
+    int count = nfunc + nvar + ntlsvar;
 
     if (structsize == sizeof(_scelibent_prx2arm)) {
-      create_struct(ea, sizeof(_scelibent_prx2arm), get_struc_id("_scelibent"));
+      create_struct(ea, sizeof(_scelibent_prx2arm), get_struc_id("scelibent"));
 
-      auto nidtable = get_dword(ea + offsetof(_scelibent_prx2arm, nidtable));
-      auto addtable = get_dword(ea + offsetof(_scelibent_prx2arm, addtable));
+      ea_t nidtable = get_dword(ea + offsetof(_scelibent_prx2arm, nidtable));
+      ea_t addtable = get_dword(ea + offsetof(_scelibent_prx2arm, addtable));
 
-      if (nidtable != 0 && addtable != 0) {
-        for (size_t i = 0; i < count; i++) {
-          auto nidoffset = nidtable + (i * 4);
-          auto addoffset = addtable + (i * 4);
+      if (nidtable != NULL && addtable != NULL) {
+        for (int i = 0; i < count; i++) {
+          ea_t nidoffset = nidtable + (i * 4);
+          ea_t addoffset = addtable + (i * 4);
 
-          auto nid = get_dword(nidoffset);
-          auto add = get_dword(addoffset);
+          uint32 nid = get_dword(nidoffset);
+          uint32 add = get_dword(addoffset);
 
           auto resolvedNid = getNameFromDatabase(nid);
           if (resolvedNid) {
@@ -651,27 +647,27 @@ void psp2_loader::loadImports(uint32 stubTop, uint32 stubEnd) {
   for (ea_t ea = stubTop; ea < stubEnd; ea += structsize) {
     structsize = get_byte(ea);
 
-    auto nfunc   = get_word(ea + offsetof(_scelibstub_common, nfunc));
-    auto nvar    = get_word(ea + offsetof(_scelibstub_common, nvar));
-    auto ntlsvar = get_word(ea + offsetof(_scelibstub_common, ntlsvar));
+    auto nFunc   = get_word(ea + offsetof(_scelibstub_common, nfunc));
+    auto nVar    = get_word(ea + offsetof(_scelibstub_common, nvar));
+    auto nTlsVar = get_word(ea + offsetof(_scelibstub_common, ntlsvar));
 
     if (structsize == sizeof(_scelibstub_prx2arm)) {
-      create_struct(ea, sizeof(_scelibstub_prx2arm), get_struc_id("_scelibstub"));
+      create_struct(ea, sizeof(_scelibstub_prx2arm), get_struc_id("scelibstub"));
 
-      auto funcnidtable = get_dword(ea + offsetof(_scelibstub_prx2arm, func_nidtable));
-      auto functable    = get_dword(ea + offsetof(_scelibstub_prx2arm, func_table));
-      auto varnidtable  = get_dword(ea + offsetof(_scelibstub_prx2arm, var_nidtable));
-      auto vartable     = get_dword(ea + offsetof(_scelibstub_prx2arm, var_table));
-      auto tlsnidtable  = get_dword(ea + offsetof(_scelibstub_prx2arm, tls_nidtable));
-      auto tlstable     = get_dword(ea + offsetof(_scelibstub_prx2arm, tls_table));
+      ea_t funcNidTable = get_dword(ea + offsetof(_scelibstub_prx2arm, func_nidtable));
+      ea_t funcTable = get_dword(ea + offsetof(_scelibstub_prx2arm, func_table));
+      ea_t varNidTable = get_dword(ea + offsetof(_scelibstub_prx2arm, var_nidtable));
+      ea_t varTable = get_dword(ea + offsetof(_scelibstub_prx2arm, var_table));
+      ea_t tlsNidTable = get_dword(ea + offsetof(_scelibstub_prx2arm, tls_nidtable));
+      ea_t tlsTable = get_dword(ea + offsetof(_scelibstub_prx2arm, tls_table));
 
-      if (funcnidtable != 0 && functable != 0) {
-        for (size_t i = 0; i < nfunc; ++i) {
-          auto nidoffset  = funcnidtable + (i * 4);
-          auto funcoffset = functable + (i * 4);
+      if (funcNidTable != NULL && funcTable != NULL) {
+        for (int i = 0; i < nFunc; ++i) {
+          ea_t nidoffset = funcNidTable + (i * 4);
+          ea_t funcoffset = funcTable + (i * 4);
 
-          auto nid  = get_dword(nidoffset);
-          auto func = get_dword(funcoffset);
+          uint32 nid = get_dword(nidoffset);
+          uint32 func = get_dword(funcoffset);
 
           auto resolvedNid = getNameFromDatabase(nid);
           if (resolvedNid) {
@@ -690,58 +686,54 @@ void psp2_loader::loadImports(uint32 stubTop, uint32 stubEnd) {
         }
       }
 
-      if (varnidtable != 0 && vartable != 0) {
-        for (size_t i = 0; i < nvar; ++i) {
-          auto nidoffset = varnidtable + (i * 4);
-          auto varoffset = vartable + (i * 4);
-
-          auto nid = get_dword(nidoffset);
-          auto var = get_dword(varoffset);
+      if (varNidTable != NULL && varTable != NULL) {
+        for (int i = 0; i < nVar; ++i) {
+          ea_t nidoffset = varNidTable + (i * 4);
+          ea_t varoffset = varTable + (i * 4);
 
           create_dword(nidoffset, 4);
           create_dword(varoffset, 4);
         }
       }
 
-      if (tlsnidtable != 0 && tlstable != 0) {
-        for (size_t i = 0; i < nvar; ++i) {
-          auto nidoffset = tlsnidtable + (i * 4);
-          auto tlsoffset = tlstable + (i * 4);
-
-          auto nid = get_dword(nidoffset);
-          auto tls = get_dword(tlsoffset);
+      msg("Processing %i imported TLS variables...\n", nTlsVar);
+      if (tlsNidTable != NULL && tlsTable != NULL) {
+        for (int i = 0; i < nTlsVar; ++i) {
+          ea_t nidoffset = tlsNidTable + (i * 4);
+          ea_t tlsoffset = tlsTable + (i * 4);
 
           create_dword(nidoffset, 4);
           create_dword(tlsoffset, 4);
         }
       }
-    } else if (structsize == 0x24) {
-      create_byte(ea+0, 1);  // structsize
-      create_byte(ea+1, 1);  // auxattribute
-      create_word(ea+2, 2);  // version
-      create_word(ea+4, 2);  // attribute
-      create_word(ea+6, 2);  // nfunc
-      create_word(ea+8, 2);  // nvar
-      create_word(ea+10, 2); // reserved?
-      create_dword(ea+12, 4); // libname_nid
-      create_dword(ea+16, 4); // libname
-      create_dword(ea+20, 4); // funcnidtable
-      create_dword(ea+24, 4); // functable
-      create_dword(ea+28, 4); // varnidtable
-      create_dword(ea+32, 4); // vartable
+    }
+    else if (structsize == 0x24) {
+      create_byte(ea + 0, 1);   // structsize
+      create_byte(ea + 1, 1);   // auxattribute
+      create_word(ea + 2, 2);   // version
+      create_word(ea + 4, 2);   // attribute
+      create_word(ea + 6, 2);   // nfunc
+      create_word(ea + 8, 2);   // nvar
+      create_word(ea + 10, 2);  // reserved?
+      create_dword(ea + 12, 4); // libname_nid
+      create_dword(ea + 16, 4); // libname
+      create_dword(ea + 20, 4); // funcnidtable
+      create_dword(ea + 24, 4); // functable
+      create_dword(ea + 28, 4); // varnidtable
+      create_dword(ea + 32, 4); // vartable
 
-      auto funcnidtable = get_dword(ea + 0x14);
-      auto functable    = get_dword(ea + 0x18);
-      auto varnidtable  = get_dword(ea + 0x1C);
-      auto vartable     = get_dword(ea + 0x20);
+      ea_t funcNidTable = get_dword(ea + 0x14);
+      ea_t funcTable = get_dword(ea + 0x18);
+      ea_t varNidTable = get_dword(ea + 0x1C);
+      ea_t varTable = get_dword(ea + 0x20);
 
-      if (funcnidtable != 0 && functable != 0) {
-        for (size_t i = 0; i < nfunc; ++i) {
-          auto nidoffset = funcnidtable + (i * 4);
-          auto funcoffset = functable + (i * 4);
+      if (funcNidTable != NULL && funcTable != NULL) {
+        for (int i = 0; i < nFunc; ++i) {
+          ea_t nidoffset = funcNidTable + (i * 4);
+          ea_t funcoffset = funcTable + (i * 4);
 
-          auto nid = get_dword(nidoffset);
-          auto func = get_dword(funcoffset);
+          uint32 nid = get_dword(nidoffset);
+          uint32 func = get_dword(funcoffset);
 
           auto resolvedNid = getNameFromDatabase(nid);
           if (resolvedNid) {
@@ -760,13 +752,10 @@ void psp2_loader::loadImports(uint32 stubTop, uint32 stubEnd) {
         }
       }
 
-      if (varnidtable != 0 && vartable != 0) {
-        for (size_t i = 0; i < nvar; ++i) {
-          auto nidoffset = varnidtable + (i * 4);
-          auto varoffset = vartable + (i * 4);
-
-          auto nid = get_dword(nidoffset);
-          auto var = get_dword(varoffset);
+      if (varNidTable != NULL && varTable != NULL) {
+        for (int i = 0; i < nVar; ++i) {
+          ea_t nidoffset = varNidTable + (i * 4);
+          ea_t varoffset = varTable + (i * 4);
 
           create_dword(nidoffset, 4);
           create_dword(varoffset, 4);
@@ -802,8 +791,7 @@ void psp2_loader::applySymbols() {
   for (size_t i = 0; i < nsym; ++i) {
     auto &symbol = symbols[i];
 
-    auto type = ELF64_ST_TYPE(symbol.st_info),
-         bind = ELF64_ST_BIND(symbol.st_info);
+    auto type = ELF64_ST_TYPE(symbol.st_info), bind = ELF64_ST_BIND(symbol.st_info);
     auto value = symbol.st_value;
 
     if (symbol.st_shndx > m_elf->getNumSections() ||
@@ -836,7 +824,7 @@ void psp2_loader::applySymbols() {
 void psp2_loader::declareStructures() {
   struc_t *sptr;
 
-  tid_t modInfoCommon = add_struc(-1, "_scemoduleinfo_common");
+  tid_t modInfoCommon = add_struc(-1, "scemoduleinfo_common");
   sptr = get_struc(modInfoCommon);
   if (sptr != NULL) {
     add_struc_member(sptr, "modattribute", BADADDR, word_flag(), NULL, 2);
@@ -844,11 +832,12 @@ void psp2_loader::declareStructures() {
     add_struc_member(sptr, "modname", BADADDR, byte_flag(), NULL, SYS_MODULE_NAME_LEN);
     add_struc_member(sptr, "terminal", BADADDR, byte_flag(), NULL, 1);
 
-    sptr = get_struc(add_struc(-1, "_scemoduleinfo"));
+    sptr = get_struc(add_struc(-1, "scemoduleinfo"));
     if (sptr != NULL) {
       opinfo_t mt = {};
       mt.tid = modInfoCommon;
-      add_struc_member(sptr, "c", BADADDR, stru_flag(), &mt, get_struc_size(mt.tid));
+
+      add_struc_member(sptr, "c", BADADDR, stru_flag(), &mt, get_struc_size(modInfoCommon));
 
       add_struc_member(sptr, "resreve", BADADDR, dword_flag(), NULL, 4);
       add_struc_member(sptr, "ent_top", BADADDR, dword_flag(), NULL, 4);
@@ -868,7 +857,7 @@ void psp2_loader::declareStructures() {
     }
   }
 
-  tid_t libStubCommon = add_struc(-1, "_scelibstub_common");
+  tid_t libStubCommon = add_struc(-1, "scelibstub_common");
   sptr = get_struc(libStubCommon);
   if (sptr != NULL) {
     add_struc_member(sptr, "structsize", BADADDR, byte_flag(), NULL, 1);
@@ -880,11 +869,12 @@ void psp2_loader::declareStructures() {
     add_struc_member(sptr, "ntlsvar", BADADDR, word_flag(), NULL, 2);
     add_struc_member(sptr, "reserved2", BADADDR, byte_flag(), NULL, 4);
 
-    sptr = get_struc(add_struc(-1, "_scelibstub"));
+    sptr = get_struc(add_struc(-1, "scelibstub"));
     if (sptr != NULL) {
       opinfo_t mt = {};
       mt.tid = libStubCommon;
-      add_struc_member(sptr, "c", BADADDR, stru_flag(), &mt, get_struc_size(mt.tid));
+
+      add_struc_member(sptr, "c", BADADDR, stru_flag(), &mt, get_struc_size(libStubCommon));
 
       add_struc_member(sptr, "libname_nid", BADADDR, dword_flag(), NULL, 4);
       add_struc_member(sptr, "libname", BADADDR, dword_flag(), NULL, 4);
@@ -898,7 +888,7 @@ void psp2_loader::declareStructures() {
     }
   }
 
-  tid_t libEntCommon = add_struc(-1, "_scelibent_common");
+  tid_t libEntCommon = add_struc(-1, "scelibent_common");
   sptr = get_struc(libEntCommon);
   if (sptr != NULL) {
     add_struc_member(sptr, "structsize", BADADDR, byte_flag(), NULL, 1);
@@ -913,11 +903,12 @@ void psp2_loader::declareStructures() {
     add_struc_member(sptr, "reserved2", BADADDR, byte_flag(), NULL, 1);
     add_struc_member(sptr, "nidaltsets", BADADDR, byte_flag(), NULL, 1);
 
-    sptr = get_struc(add_struc(-1, "_scelibent"));
+    sptr = get_struc(add_struc(-1, "scelibent"));
     if (sptr != NULL) {
       opinfo_t mt = {};
       mt.tid = libEntCommon;
-      add_struc_member(sptr, "c", BADADDR, stru_flag(), &mt, get_struc_size(mt.tid));
+
+      add_struc_member(sptr, "c", BADADDR, stru_flag(), &mt, get_struc_size(libEntCommon));
 
       add_struc_member(sptr, "libname_nid", BADADDR, dword_flag(), NULL, 4);
       add_struc_member(sptr, "libname", BADADDR, dword_flag(), NULL, 4);
