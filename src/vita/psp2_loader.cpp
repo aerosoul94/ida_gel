@@ -622,12 +622,18 @@ void psp2_loader::loadExports(uint32 entTop, uint32 entEnd) {
           auto nid = get_long(nidoffset);
           auto add = get_long(addoffset);
 
+          if (add & 1)
+            add -= 1;
+
           auto resolvedNid = getNameFromDatabase(nid);
           if (resolvedNid) {
             set_cmt(nidoffset, resolvedNid, false);
-            if (add & 1)
-              add -= 1;
             do_name_anyway(add, resolvedNid);
+          } else {
+            msg("unknown export %08X\n", nid);
+            qstring qfuncname;
+            qfuncname.sprnt("export_%08X", nid);
+            do_name_anyway(add, qfuncname.c_str());
           }
 
           if (i < nfunc)
@@ -640,6 +646,18 @@ void psp2_loader::loadExports(uint32 entTop, uint32 entEnd) {
     } else {
       msg("Unknown export structure at %08x\n", ea);
     }
+  }
+}
+
+qstring get_string(ea_t ea)
+{
+  qstring out;
+  while (true)
+  {
+    auto const byte = get_byte(ea++);
+    if (!byte || out.size() >= 32)
+      return out;
+    out += byte;
   }
 }
 
@@ -656,12 +674,15 @@ void psp2_loader::loadImports(uint32 stubTop, uint32 stubEnd) {
     if (structsize == sizeof(_scelibstub_prx2arm)) {
       doStruct(ea, sizeof(_scelibstub_prx2arm), get_struc_id("_scelibstub"));
 
+      auto libname = get_long(ea + offsetof(_scelibstub_prx2arm, libname));
       auto funcnidtable = get_long(ea + offsetof(_scelibstub_prx2arm, func_nidtable));
       auto functable    = get_long(ea + offsetof(_scelibstub_prx2arm, func_table));
       auto varnidtable  = get_long(ea + offsetof(_scelibstub_prx2arm, var_nidtable));
       auto vartable     = get_long(ea + offsetof(_scelibstub_prx2arm, var_table));
       auto tlsnidtable  = get_long(ea + offsetof(_scelibstub_prx2arm, tls_nidtable));
       auto tlstable     = get_long(ea + offsetof(_scelibstub_prx2arm, tls_table));
+
+      auto qlibname = get_string(libname);
 
       if (funcnidtable != NULL && functable != NULL) {
         for (size_t i = 0; i < nfunc; ++i) {
@@ -671,12 +692,18 @@ void psp2_loader::loadImports(uint32 stubTop, uint32 stubEnd) {
           auto nid  = get_long(nidoffset);
           auto func = get_long(funcoffset);
 
+          if (func & 1)
+            func -= 1;
+
           auto resolvedNid = getNameFromDatabase(nid);
           if (resolvedNid) {
             set_cmt(nidoffset, resolvedNid, false);
-            if (func & 1)
-              func -= 1;
             do_name_anyway(func, resolvedNid);
+          } else {
+            //msg("unknown 0x34 nid '%s_%s'\n", qlibname.c_str(), qfuncname.c_str());
+            qstring qfuncname;
+            qfuncname.sprnt("%s_%08X", qlibname.c_str(), nid);
+            do_name_anyway(func, qfuncname.c_str());
           }
 
           doDwrd(nidoffset, 4);
@@ -728,10 +755,13 @@ void psp2_loader::loadImports(uint32 stubTop, uint32 stubEnd) {
       doDwrd(ea+28, 4); // varnidtable
       doDwrd(ea+32, 4); // vartable
 
+      auto libname = get_long(ea + 0x10);
       auto funcnidtable = get_long(ea + 0x14);
       auto functable    = get_long(ea + 0x18);
       auto varnidtable  = get_long(ea + 0x1C);
       auto vartable     = get_long(ea + 0x20);
+
+      auto qlibname = get_string(libname);
 
       if (funcnidtable != NULL && functable != NULL) {
         for (size_t i = 0; i < nfunc; ++i) {
@@ -741,12 +771,18 @@ void psp2_loader::loadImports(uint32 stubTop, uint32 stubEnd) {
           auto nid = get_long(nidoffset);
           auto func = get_long(funcoffset);
 
+          if (func & 1)
+            func -= 1;
+
           auto resolvedNid = getNameFromDatabase(nid);
           if (resolvedNid) {
             set_cmt(nidoffset, resolvedNid, false);
-            if (func & 1)
-              func -= 1;
             do_name_anyway(func, resolvedNid);
+          } else {
+            //msg("unknown 0x24 nid '%s_%s'\n", qlibname.c_str(), qfuncname.c_str());
+            qstring qfuncname;
+            qfuncname.sprnt("%s_%08X", qlibname.c_str(), nid);
+            do_name_anyway(func, qfuncname.c_str());
           }
 
           doDwrd(nidoffset, 4);
