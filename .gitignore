@@ -1,3 +1,5 @@
 /src/ps3/build/
 /src/vita/build/
 /src/wiiu/build/
+/.vs
+/build

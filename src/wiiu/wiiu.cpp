@@ -16,7 +16,7 @@ static int idaapi
 		
 	  *processor = "ppc";
       *fileformatname = "WII U RPX/RPL";
-
+		
       return ACCEPT_FIRST | 1;
     }
   }
@@ -40,14 +40,16 @@ static void idaapi
 }
 
 #ifdef _WIN32
+__declspec(dllexport)
 #endif
 loader_t LDSC =
 {
   IDP_INTERFACE_VERSION,
-  0,
+  LDRF_REQ_PROC,
   accept_file,
   load_file,
   NULL,
   NULL,
   NULL
 };
+
