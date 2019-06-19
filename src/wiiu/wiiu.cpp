@@ -39,9 +39,6 @@ static void idaapi
   cafe_loader ldr(&elf); ldr.apply();
 }
 
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
 loader_t LDSC =
 {
   IDP_INTERFACE_VERSION,

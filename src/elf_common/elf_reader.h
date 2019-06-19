@@ -31,6 +31,18 @@
 
 #pragma once
 
+#ifdef WIN32
+#define __NT__
+#endif
+
+#ifdef _M_X64
+#define __X64__
+#endif
+
+#ifndef __IDP__
+	#define __IDP__
+#endif
+
 #include "elf.h"
 
 #include <idaldr.h> // TODO: do not depend on this
