@@ -31,6 +31,18 @@
 
 #pragma once
 
+#ifdef WIN32
+#define __NT__
+#endif
+
+#ifdef _M_X64
+#define __X64__
+#endif
+
+#ifndef __IDP__
+	#define __IDP__
+#endif
+
 #include "elf.h"
 
 #include <idaldr.h> // TODO: do not depend on this
@@ -196,7 +208,7 @@ public:
   bool verifyHeader() {
     readHeader();
 
-    if (m_header.e_ident[EI_MAG0] == ELFMAG0 &&
+    if ((m_header.e_ident[EI_MAG0] == ELFMAG0 || m_header.e_ident[EI_MAG0] == ELFMAG0_ALT) &&
         m_header.e_ident[EI_MAG1] == ELFMAG1 &&
         m_header.e_ident[EI_MAG2] == ELFMAG2 &&
         m_header.e_ident[EI_MAG3] == ELFMAG3) {

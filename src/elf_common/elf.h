@@ -108,6 +108,7 @@ typedef struct
 
 #define EI_MAG0		0		/* File identification byte 0 index */
 #define ELFMAG0		0x7f		/* Magic number byte 0 */
+#define ELFMAG0_ALT	0x7e		/* Magic number byte 0 */
 
 #define EI_MAG1		1		/* File identification byte 1 index */
 #define ELFMAG1		'E'		/* Magic number byte 1 */

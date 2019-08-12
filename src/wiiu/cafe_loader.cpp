@@ -101,8 +101,8 @@ void cafe_loader::applySegment(uint32 sel,
                                uchar align,
                                bool load) {
   segment_t seg;
-  seg.startEA = addr;
-  seg.endEA = addr + size;
+  seg.start_ea = addr;
+  seg.end_ea = addr + size;
   seg.color = DEFCOLOR;
   seg.sel = sel;
   seg.bitness = 1;
@@ -174,7 +174,7 @@ void cafe_loader::applyRelocations() {
         case R_PPC_REL24: {
             if (symbols[sym].st_value & 0xc0000000 &&
               ELF32_ST_TYPE(symbols[sym].st_info) == STT_FUNC) {
-              auto inst = get_original_long(rela.r_offset);
+              auto inst = get_original_dword(rela.r_offset);
               auto addr = rela.r_offset + (inst & 0x3fffffc);
 
               if (m_externStart > addr)
@@ -201,8 +201,8 @@ void cafe_loader::applyRelocations() {
 void cafe_loader::processImports() {
   if (m_externStart != 0xffffffff && m_externEnd != 0) {
     segment_t ext;
-    ext.startEA = m_externStart;
-    ext.endEA = m_externEnd;
+    ext.start_ea = m_externStart;
+    ext.end_ea = m_externEnd;
     ext.sel = 255;
     ext.bitness = 1;
     ext.color = DEFCOLOR;
@@ -217,21 +217,29 @@ void cafe_loader::processImports() {
   }
 
   for (auto &import : m_imports) {
-    char name[256];
-    do_name_anyway(import.addr, import.name);
+    force_name(import.addr, import.name);
 
-    char lib[32];
-    get_segm_name(import.orig, lib, 32);
+   // char lib[32];
+   // get_segm_name(import.orig, lib, 32); UPDATED
+	qstring lib;
+    get_segm_name(&lib, getseg(import.orig));
 
     netnode impnode;
     impnode.create();
 
-    if (demangle_name(name, 256, import.name, NULL))
+    /*if (demangle_name(name, 256, import.name, NULL)) UPDATED
       impnode.supset(import.addr, name);
     else
       impnode.supset(import.addr, import.name);
+	  */
 
-    import_module(lib + 9, NULL, impnode, NULL, "wiiu");
+	qstring out;
+    if (demangle_name(&out, import.name, 0))
+      impnode.supset(import.addr, out.c_str());
+    else
+      impnode.supset(import.addr, import.name);
+
+    import_module(lib.c_str() + 9, NULL, impnode, NULL, "wiiu");
   }
 }
 
@@ -241,52 +249,49 @@ void cafe_loader::processExports() {
   uint32 numExports;
 
   if ((seg = get_segm_by_name(".fexports")) != NULL) {
-    start = seg->startEA;
-    numExports = get_long(start);
+    start = seg->start_ea;
+    numExports = get_dword(start);
 
     for (int i = 0; i < numExports + 1; ++i) {
-      doDwrd((start + (i * 8)) + 0, 4);
-      doDwrd((start + (i * 8)) + 4, 4);
+      create_dword((start + (i * 8)) + 0, 4);
+      create_dword((start + (i * 8)) + 4, 4);
 
       if (i == 0)
         continue;
 
-      uint32 addr = get_long(start + (i * 8) + 0);
-      uint32 name = get_long(start + (i * 8) + 4);
+      uint32 addr = get_dword(start + (i * 8) + 0);
+      uint32 name = get_dword(start + (i * 8) + 4);
 
       auto_make_proc(addr);
 
-      char exp[256];
-      get_ascii_contents(start + name, 
-          get_max_ascii_length(start + name, ASCSTR_C, true), 
-              ASCSTR_C, exp, 256);
-
-      add_entry(addr, addr, exp, true);
+	  qstring exp;
+	  get_strlit_contents(&exp, start + name, get_max_strlit_length(start + name, STRTYPE_C, true), STRTYPE_C);
+      add_entry(addr, addr, exp.c_str(), true);
     }
   }
 
   if ((seg = get_segm_by_name(".dexports")) != NULL)
   {
-    start = seg->startEA;
-    numExports = get_long(start);
+    start = seg->start_ea;
+    numExports = get_dword(start);
 
     for (int i = 0; i < numExports + 1; i++)
     {
-      doDwrd((start + (i * 8)) + 0, 4);
-      doDwrd((start + (i * 8)) + 4, 4);
+      create_dword((start + (i * 8)) + 0, 4);
+      create_dword((start + (i * 8)) + 4, 4);
 
       if (i == 0)
         continue;
 
-      uint32 addr = get_long(start + (8 * i) + 0);
-      uint32 name = get_long(start + (8 * i) + 4);
+      uint32 addr = get_dword(start + (8 * i) + 0);
+      uint32 name = get_dword(start + (8 * i) + 4);
 
-      char exp[256];
-      get_ascii_contents(start + name, 
-          get_max_ascii_length(start + name, ASCSTR_C, true), 
-              ASCSTR_C, exp, 256);
+	  qstring exp;
+	  get_strlit_contents(&exp, start + name,
+		  get_max_strlit_length(start + name, STRTYPE_C, true),
+		  STRTYPE_C);
 
-      add_entry(addr, addr, exp, true);
+      add_entry(addr, addr, exp.c_str(), true);
     }
   }
 }
@@ -338,16 +343,20 @@ void cafe_loader::applySymbols() {
     if (symbol.st_shndx == SHN_ABS)
       continue;
 
+	  // crashes with current ida if setting these names
+	if (0 == strcmp(&stringTable[symbol.st_name], "main") || 0 == strcmp(&stringTable[symbol.st_name], "_main"))
+		continue;
+
     // TODO: these are the same for all ELF's, maybe move to ELF reader
     switch (type) {
     case STT_OBJECT:
-      do_name_anyway(value, &stringTable[symbol.st_name]);
+      force_name(value, &stringTable[symbol.st_name]);
       break;
     case STT_FILE:
-      describe(value, true, "Source File: %s", &stringTable[symbol.st_name]);
+	  add_extra_line(value, true, "Source File: %s", &stringTable[symbol.st_name]);
       break;
     case STT_FUNC:
-      do_name_anyway(value, &stringTable[symbol.st_name]);
+      force_name(value, &stringTable[symbol.st_name]);
       auto_make_proc(value);
       break;
     }
