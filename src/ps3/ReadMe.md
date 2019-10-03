@@ -6,6 +6,7 @@ An IDA Pro loader for PS3 Cell Lv-2 OS.
 * Processes and labels exports and imports
 * PRX relocation
 * Find and set TOC address
+* Supports prototype executables
 
 ## Usage
 ### NID Database

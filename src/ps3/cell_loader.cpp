@@ -1,4 +1,4 @@
-#include "cell_loader.h"
+#include "cell_loader.hpp"
 
 #include <idaldr.h>
 #include <struct.hpp>
@@ -160,8 +160,8 @@ void cell_loader::applyProgramHeaders() {
   size_t index = 0;
   for ( const auto &segment : segments ) {
     if ( segment.p_memsz > 0 ) {
-      uchar perm;
-      char *sclass;
+      uchar perm = 0;
+      char *sclass = NULL;
 
       if ( segment.p_flags & PF_W )    // if its writable
         sclass = CLASS_DATA;
@@ -667,14 +667,42 @@ void cell_loader::applyProcessInfo() {
       tid_t tid = get_struc_id("sys_process_param_t");
       doStruct(segment.p_vaddr, sizeof(sys_process_param_t), tid);
     } else if ( segment.p_type == PT_PROC_PRX ) {
-      tid_t tid = get_struc_id("sys_process_prx_info_t");
-      doStruct(segment.p_vaddr, sizeof(sys_process_prx_info_t), tid);
+	  ea_t libent_start = 0;
+      ea_t libent_end = 0;
+	  ea_t libstub_start = 0; 
+	  ea_t libstub_end = 0;
+      
+      // VSH has this segment zeroed and stripped.
+      if ( segment.p_filesz == 0 ) {
+        // try and find libent and libstub segments
+        segment_t *libSeg;
+        for ( libSeg = get_first_seg(); libSeg != NULL; 
+              libSeg = get_next_seg(libSeg->startEA) ) {
+          auto structsize = get_byte(libSeg->startEA);
+          auto structsize2 = get_byte(libSeg->startEA + structsize);
+          
+          if ( structsize  == sizeof(_scelibstub_ppu32) &&
+               structsize2 == sizeof(_scelibstub_ppu32) ) {
+            libstub_start = libSeg->startEA;
+            libstub_end   = libSeg->endEA;
+          } else if ( structsize  == sizeof(_scelibent_ppu32) &&
+                      structsize2 == sizeof(_scelibent_ppu32) ) {
+            libent_start = libSeg->startEA;
+            libent_end   = libSeg->endEA;
+          }
+        }
+      } else {
+        tid_t tid = get_struc_id("sys_process_prx_info_t");
+        doStruct(segment.p_vaddr, sizeof(sys_process_prx_info_t), tid);
+        
+        libent_start  = get_long(segment.p_vaddr + offsetof(sys_process_prx_info_t, libent_start));
+        libent_end    = get_long(segment.p_vaddr + offsetof(sys_process_prx_info_t, libent_end));
+        libstub_start = get_long(segment.p_vaddr + offsetof(sys_process_prx_info_t, libstub_start));
+        libstub_end   = get_long(segment.p_vaddr + offsetof(sys_process_prx_info_t, libstub_end));
+      }
 
-      loadExports( get_long(segment.p_vaddr + offsetof(sys_process_prx_info_t, libent_start)),
-                   get_long(segment.p_vaddr + offsetof(sys_process_prx_info_t, libent_end)) );
-
-      loadImports( get_long(segment.p_vaddr + offsetof(sys_process_prx_info_t, libstub_start)),
-                   get_long(segment.p_vaddr + offsetof(sys_process_prx_info_t, libstub_end)) );
+      loadExports(libent_start, libent_end);
+      loadImports(libstub_start, libstub_end);
     }
   }
 }

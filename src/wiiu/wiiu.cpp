@@ -1,5 +1,5 @@
-#include "elf_reader.h"
-#include "cafe_loader.h"
+#include "elf_reader.hpp"
+#include "cafe_loader.hpp"
 
 #include <idaldr.h>
 

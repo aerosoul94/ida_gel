@@ -1,4 +1,3 @@
-
 /**
  * A very basic template based ELF reader. It is very common for OS's
  * to implement their own ELF ABI. Section and segment headers are most 

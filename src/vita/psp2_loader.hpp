@@ -1,6 +1,6 @@
 #pragma once
 
-#include "elf_reader.h"
+#include "elf_reader.hpp"
 #include "sce.h"
 
 #include <fstream>

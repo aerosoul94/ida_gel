@@ -1,4 +1,4 @@
-#include "psp2_loader.h"
+#include "psp2_loader.hpp"
 #include <struct.hpp>
 #include <pro.h>
 #include <string>

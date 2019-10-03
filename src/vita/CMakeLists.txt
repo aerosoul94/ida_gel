@@ -6,10 +6,10 @@ set(ELF_COMMON_PATH ${CMAKE_SOURCE_DIR}/../elf_common)
 set(THIRD_PARTY_PATH ${CMAKE_SOURCE_DIR}/../../third_party)
 
 set(SOURCES
-    ${ELF_COMMON_PATH}/elf_reader.h
+    ${ELF_COMMON_PATH}/elf_reader.hpp
     ${ELF_COMMON_PATH}/elf.h
     psp2_loader.cpp
-    psp2_loader.h
+    psp2_loader.hpp
     vita.cpp
     sce.h
 )

@@ -1,5 +1,5 @@
-#include "../elf_common/elf_reader.h"
-#include "cell_loader.h"
+#include "../elf_common/elf_reader.hpp"
+#include "cell_loader.hpp"
 #include "sce.h"
 
 #include <idaldr.h>

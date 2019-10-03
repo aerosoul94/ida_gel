@@ -1,4 +1,4 @@
-#include "cafe_loader.h"
+#include "cafe_loader.hpp"
 #include "cafe.h"
 #include "tinfl.c"
 

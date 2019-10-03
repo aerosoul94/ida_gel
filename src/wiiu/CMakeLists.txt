@@ -6,11 +6,11 @@ set(ELF_COMMON_PATH ${CMAKE_SOURCE_DIR}/../elf_common)
 set(THIRD_PARTY_PATH ${CMAKE_SOURCE_DIR}../../third_party)
 
 set(SOURCES
-    ${ELF_COMMON_PATH}/elf_reader.h
+    ${ELF_COMMON_PATH}/elf_reader.hpp
     ${ELF_COMMON_PATH}/elf.h
     tinfl.c
     cafe_loader.cpp
-    cafe_loader.h
+    cafe_loader.hpp
     wiiu.cpp
     cafe.h
 )

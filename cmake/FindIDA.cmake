@@ -46,14 +46,6 @@ if(MSVC)
     set(compiler "vc")
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX OR ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
-    set(compiler "gcc")
-endif()
-
-if(MSVC)
-    set(compiler "vc")
-endif()
-
 set(IDA_64_BIT_EA_T OFF CACHE BOOL "Use 64-bit ea_t. Set this to build 64-bit code capable IDA plugins.")
 
 if(IDA_64_BIT_EA_T)
@@ -62,7 +54,7 @@ else()
     set(suffix "32")
 endif()
 
-if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT NC_M32)
+if(IDA_64_BIT_EA_T)
     set(library_dir "lib/x64_${platform}_${compiler}_${suffix}")
 else()
     set(library_dir "lib/x86_${platform}_${compiler}_${suffix}")
@@ -73,8 +65,7 @@ endif()
 #
 find_path(IDA_SDK_PATH
     NAME ${library_dir}
-    HINTS $ENV{IDA_SDK_DIR} $ENV{IDA_SDK}
-    PATHS "${IDA_PATH}/sdk"
+    HINTS $ENV{IDA_SDK} $ENV{IDA_SDK_DIR}
     DOC "IDA SDK directory.")
     
 if(IDA_SDK_PATH)
@@ -97,9 +88,6 @@ if(IDA_SDK_PATH)
     endif()
     if(APPLE)
         set(IDA_DEFINITIONS ${IDA_DEFINITIONS} -D__MAC__)
-    endif()
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT NC_M32)
-        set(IDA_DEFINITIONS ${IDA_DEFINITIONS} -D__X64__)
     endif()
     if(IDA_64_BIT_EA_T)
         set(IDA_DEFINITIONS ${IDA_DEFINITIONS} -D__EA64__)

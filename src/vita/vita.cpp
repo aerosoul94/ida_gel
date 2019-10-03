@@ -1,5 +1,5 @@
-#include "../elf_common/elf_reader.h"
-#include "psp2_loader.h"
+#include "../elf_common/elf_reader.hpp"
+#include "psp2_loader.hpp"
 #include "sce.h"
 
 #include <idaldr.h>
